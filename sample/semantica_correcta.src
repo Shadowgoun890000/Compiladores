@@ -1,0 +1,56 @@
+// Ejemplo semánticamente correcto
+
+// Declaraciones de variables
+let x = 10;
+let y = 20;
+const PI = 3.14159;
+
+// Uso de variables
+let suma = x + y;
+let producto = x * y;
+let cociente = x / y;
+
+// Funciones bien declaradas
+function saludar(nombre) {
+    let mensaje = "Hola, " + nombre;
+    return mensaje;
+}
+
+function factorial(n) {
+    if (n <= 1) {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
+}
+
+// Uso correcto de funciones
+let saludo = saludar("María");
+let fact5 = factorial(5);
+
+// Estructuras de control
+if (x > y) {
+    let mayor = x;
+} else {
+    let mayor = y;
+}
+
+// Bucle while
+let contador = 0;
+while (contador < 10) {
+    contador = contador + 1;
+}
+
+// Bucle for
+for (let i = 0; i < 5; i = i + 1) {
+    let cuadrado = i * i;
+}
+
+// Expresiones booleanas
+let esPositivo = x > 0;
+let enRango = x >= 0 && x <= 100;
+let esMayor = x > y || x == y;
+
+// Todo se usa correctamente
+let resultado = suma + producto + cociente;
+let mensaje = saludo + " tu factorial es: " + fact5;
