@@ -1,0 +1,50 @@
+digraph DFA {
+  rankdir=LR;
+  node [shape=circle];
+  __start__ [shape=point];
+  __start__ -> S0;
+  S0 [shape=circle, label="S0\nEstado inicial"];
+  S1 [shape=doublecircle, label="S1\nIdentificador/Keyword\nToken: ID"];
+  S2 [shape=doublecircle, label="S2\nNúmero entero\nToken: NUM"];
+  S3 [shape=circle, label="S3\nPunto o operador DOT"];
+  S4 [shape=circle, label="S4\nString en proceso"];
+  S5 [shape=circle, label="S5\nDivisión o comentario"];
+  S6 [shape=circle, label="S6\nOperadores de 2 caracteres"];
+  S7 [shape=doublecircle, label="S7\nOperadores de 1 carácter\nToken: OPERATOR"];
+  S8 [shape=doublecircle, label="S8\nWhitespace\nToken: WS"];
+  S9 [shape=doublecircle, label="S9\nNúmero decimal\nToken: NUM"];
+  S10 [shape=circle, label="S10\nExponente"];
+  S11 [shape=doublecircle, label="S11\nString completo\nToken: STRING"];
+  S12 [shape=doublecircle, label="S12\nComentario\nToken: COMMENT"];
+  S13 [shape=doublecircle, label="S13\nOperadores ==, !=, <=, >=\nToken: OPERATOR"];
+  S14 [shape=doublecircle, label="S14\nOperador ||\nToken: OPERATOR"];
+  S15 [shape=doublecircle, label="S15\nOperador &&\nToken: OPERATOR"];
+  S16 [shape=circle, label="S16\nSigno exponente"];
+  S17 [shape=doublecircle, label="S17\nNúmero con exponente\nToken: NUM"];
+  S0 -> S1 [label="A-Z,_,a-z"];
+  S0 -> S2 [label="0-9"];
+  S0 -> S3 [label="."];
+  S0 -> S4 [label="""];
+  S0 -> S5 [label="/"];
+  S0 -> S8 [label=" ,	,,
+"];
+  S0 -> S6 [label="!,&,<->..."];
+  S0 -> S7 [label="%,(--,;..."];
+  S1 -> S1 [label="0-9,A-Z,_..."];
+  S2 -> S2 [label="0-9"];
+  S2 -> S9 [label="."];
+  S2 -> S10 [label="e,E"];
+  S3 -> S9 [label="0-9"];
+  S4 -> S4 [label=" ,!,#-[..."];
+  S4 -> S11 [label="""];
+  S5 -> S12 [label="/"];
+  S6 -> S13 [label="="];
+  S6 -> S14 [label="|"];
+  S6 -> S15 [label="&"];
+  S9 -> S9 [label="0-9"];
+  S9 -> S10 [label="e,E"];
+  S10 -> S16 [label="+,-"];
+  S10 -> S17 [label="0-9"];
+  S12 -> S12 [label=" -~"];
+  S16 -> S17 [label="0-9"];
+}
