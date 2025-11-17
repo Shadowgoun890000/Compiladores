@@ -1,0 +1,37 @@
+// Ejemplo con estructuras de control
+
+let x = 10;
+let y = 5;
+
+// Sentencia if-else
+if (x > y) {
+    let mayor = x;
+} else {
+    let mayor = y;
+}
+
+// Sentencia while
+let contador = 0;
+while (contador < 10) {
+    contador = contador + 1;
+}
+
+// Sentencia for
+for (let i = 0; i < 5; i = i + 1) {
+    let cuadrado = i * i;
+}
+
+// Expresiones lógicas
+let a = true;
+let b = false;
+let resultado1 = a && b;
+let resultado2 = a || b;
+let resultado3 = !a;
+
+// Comparaciones
+let comp1 = x == y;
+let comp2 = x != y;
+let comp3 = x < y;
+let comp4 = x <= y;
+let comp5 = x > y;
+let comp6 = x >= y;
