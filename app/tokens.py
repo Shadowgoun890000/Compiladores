@@ -12,6 +12,8 @@ KEYWORDS = {
     "let":"LET","const":"CONST","function":"FUNCTION",
     "if":"IF","else":"ELSE","while":"WHILE","for":"FOR",
     "return":"RETURN","true":"TRUE","false":"FALSE",
+    "typeof": "TYPEOF", "class": "CLASS", "throw": "THROW",
+    "new": "NEW"
 }
 
 OPERATORS = [

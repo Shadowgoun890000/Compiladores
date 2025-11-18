@@ -45,6 +45,15 @@ class FunctionDecl(ASTNode):
     col: int = 0
 
 
+@dataclass
+class ClassDecl(ASTNode):
+    """Declaración de clase: class Name { body }"""
+    name: str
+    body: List[ASTNode]
+    line: int = 0
+    col: int = 0
+
+
 # ============================================================================
 # Sentencias de control
 # ============================================================================
@@ -82,6 +91,14 @@ class ForStmt(ASTNode):
 class ReturnStmt(ASTNode):
     """Sentencia return: return expr"""
     value: Optional[ASTNode] = None
+    line: int = 0
+    col: int = 0
+
+
+@dataclass
+class ThrowStmt(ASTNode):
+    """Sentencia throw: throw expr"""
+    value: ASTNode
     line: int = 0
     col: int = 0
 
@@ -143,6 +160,15 @@ class CallExpr(ASTNode):
 
 
 @dataclass
+class NewExpr(ASTNode):
+    """Expresión new: new ClassName(args)"""
+    class_name: str
+    arguments: List[ASTNode]
+    line: int = 0
+    col: int = 0
+
+
+@dataclass
 class IndexExpr(ASTNode):
     """Acceso a índice: object[index]"""
     object: ASTNode
@@ -186,26 +212,32 @@ class Literal(ASTNode):
 def ast_to_string(node: ASTNode, indent: int = 0) -> str:
     """Convierte un nodo AST a una representación en string legible"""
     prefix = "  " * indent
-    
+
     if isinstance(node, Program):
         result = f"{prefix}Program:\n"
         for stmt in node.statements:
             result += ast_to_string(stmt, indent + 1)
         return result
-    
+
     elif isinstance(node, VarDecl):
         result = f"{prefix}VarDecl({node.kind} {node.name})\n"
         if node.init:
             result += ast_to_string(node.init, indent + 1)
         return result
-    
+
     elif isinstance(node, FunctionDecl):
         params = ", ".join(node.params)
         result = f"{prefix}FunctionDecl({node.name}({params}))\n"
         for stmt in node.body:
             result += ast_to_string(stmt, indent + 1)
         return result
-    
+
+    elif isinstance(node, ClassDecl):
+        result = f"{prefix}ClassDecl({node.name})\n"
+        for stmt in node.body:
+            result += ast_to_string(stmt, indent + 1)
+        return result
+
     elif isinstance(node, IfStmt):
         result = f"{prefix}IfStmt:\n"
         result += f"{prefix}  Condition:\n"
@@ -216,7 +248,7 @@ def ast_to_string(node: ASTNode, indent: int = 0) -> str:
             result += f"{prefix}  Else:\n"
             result += ast_to_string(node.else_branch, indent + 2)
         return result
-    
+
     elif isinstance(node, WhileStmt):
         result = f"{prefix}WhileStmt:\n"
         result += f"{prefix}  Condition:\n"
@@ -224,7 +256,7 @@ def ast_to_string(node: ASTNode, indent: int = 0) -> str:
         result += f"{prefix}  Body:\n"
         result += ast_to_string(node.body, indent + 2)
         return result
-    
+
     elif isinstance(node, ForStmt):
         result = f"{prefix}ForStmt:\n"
         if node.init:
@@ -239,40 +271,46 @@ def ast_to_string(node: ASTNode, indent: int = 0) -> str:
         result += f"{prefix}  Body:\n"
         result += ast_to_string(node.body, indent + 2)
         return result
-    
+
     elif isinstance(node, ReturnStmt):
         result = f"{prefix}ReturnStmt:\n"
         if node.value:
             result += ast_to_string(node.value, indent + 1)
         return result
-    
+
+    elif isinstance(node, ThrowStmt):
+        result = f"{prefix}ThrowStmt:\n"
+        if node.value:
+            result += ast_to_string(node.value, indent + 1)
+        return result
+
     elif isinstance(node, Block):
         result = f"{prefix}Block:\n"
         for stmt in node.statements:
             result += ast_to_string(stmt, indent + 1)
         return result
-    
+
     elif isinstance(node, ExprStmt):
         result = f"{prefix}ExprStmt:\n"
         result += ast_to_string(node.expr, indent + 1)
         return result
-    
+
     elif isinstance(node, BinaryOp):
         result = f"{prefix}BinaryOp({node.operator})\n"
         result += ast_to_string(node.left, indent + 1)
         result += ast_to_string(node.right, indent + 1)
         return result
-    
+
     elif isinstance(node, UnaryOp):
         result = f"{prefix}UnaryOp({node.operator})\n"
         result += ast_to_string(node.operand, indent + 1)
         return result
-    
+
     elif isinstance(node, Assignment):
         result = f"{prefix}Assignment({node.name})\n"
         result += ast_to_string(node.value, indent + 1)
         return result
-    
+
     elif isinstance(node, CallExpr):
         result = f"{prefix}CallExpr:\n"
         result += f"{prefix}  Callee:\n"
@@ -282,23 +320,31 @@ def ast_to_string(node: ASTNode, indent: int = 0) -> str:
             for arg in node.arguments:
                 result += ast_to_string(arg, indent + 2)
         return result
-    
+
+    elif isinstance(node, NewExpr):
+        result = f"{prefix}NewExpr(new {node.class_name})\n"
+        if node.arguments:
+            result += f"{prefix}  Args:\n"
+            for arg in node.arguments:
+                result += ast_to_string(arg, indent + 2)
+        return result
+
     elif isinstance(node, IndexExpr):
         result = f"{prefix}IndexExpr:\n"
         result += ast_to_string(node.object, indent + 1)
         result += ast_to_string(node.index, indent + 1)
         return result
-    
+
     elif isinstance(node, MemberExpr):
         result = f"{prefix}MemberExpr(.{node.member})\n"
         result += ast_to_string(node.object, indent + 1)
         return result
-    
+
     elif isinstance(node, Identifier):
         return f"{prefix}Identifier({node.name})\n"
-    
+
     elif isinstance(node, Literal):
         return f"{prefix}Literal({node.type}: {node.value})\n"
-    
+
     else:
         return f"{prefix}{type(node).__name__}\n"

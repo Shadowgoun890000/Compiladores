@@ -2,6 +2,7 @@ import re
 from .tokens import KEYWORDS, OPERATORS, TOKEN_NAME, Token, LexError
 
 RE_STRING = r'"[^"\n]*"'
+RE_TEMPLATE_STRING = r'`([^`\\]|\\.)*`'
 RE_NUM    = r'(?:\d+\.\d+(?:[eE][+-]?\d+)?|\d+(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)'
 RE_ID     = r'[A-Za-z_][A-Za-z_0-9]*'
 RE_WS     = r'[ \t\r\n]+'
@@ -38,6 +39,11 @@ class Lexer:
             self._skip()
             if self.eof(): break
             L,C=self.line,self.col
+
+            if self.peek() == '`':
+                m = self._m(RE_TEMPLATE_STRING)
+                if not m: raise LexError(L, C, self.src[self.i:self.i + 20])
+                toks.append(Token("TEMPLATE_STRING", m, L, C));self.advance(len(m));continue
 
             if self.peek()=='"':
                 m=self._m(RE_STRING)
