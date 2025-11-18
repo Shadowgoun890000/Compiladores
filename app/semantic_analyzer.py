@@ -173,23 +173,25 @@ class SemanticAnalyzer:
         self.in_function = True
         self.current_function_return_type = DataType.UNKNOWN
 
-        # Definir parámetros
+        # DEFINIR PARÁMETROS - ESTO ES CLAVE
         for param in node.params:
             param_symbol = Symbol(
                 name=param,
                 kind=SymbolKind.PARAMETER,
-                data_type=DataType.UNKNOWN,
+                data_type=DataType.UNKNOWN,  # O inferir tipo si es posible
                 line=node.line,
                 col=node.col,
-                initialized=True
+                initialized=True,  # Los parámetros se consideran inicializados
+                used=False
             )
-            if not self.symbol_table.define(param_symbol):
+            success = self.symbol_table.define(param_symbol)
+            if not success:
                 self._add_error(
                     node.line, node.col,
                     f"Parámetro '{param}' duplicado en función '{node.name}'"
                 )
 
-        # Visitar cuerpo
+        # Visitar cuerpo - DEBE estar dentro del scope de la función
         for stmt in node.body:
             self.visit_statement(stmt)
 
@@ -367,8 +369,15 @@ class SemanticAnalyzer:
 
         op = node.operator
 
+        # Manejar operador typeof
+        if op in ['===', '!==', '==', '!=']:
+            # Para typeof, el lado derecho puede ser un string literal
+            if isinstance(node.left, UnaryOp) and node.left.operator == 'typeof':
+                return DataType.BOOLEAN
+            # Permitir comparaciones mixtas
+            return DataType.BOOLEAN
         # Operadores aritméticos
-        if op in ['+', '-', '*', '/', '%']:
+        elif op in ['+', '-', '*', '/', '%']:
             if left_type == DataType.NUMBER and right_type == DataType.NUMBER:
                 return DataType.NUMBER
             elif left_type == DataType.UNKNOWN or right_type == DataType.UNKNOWN:

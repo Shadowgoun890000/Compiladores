@@ -96,17 +96,19 @@ class SymbolTable:
         
         # Funciones built-in
         self._define_builtins()
-    
+
     def _define_builtins(self):
         """Define funciones y constantes built-in"""
-        # Funciones built-in
         builtins = [
             ("print", [DataType.UNKNOWN], DataType.VOID),
+            ("console", [], DataType.UNKNOWN),  # Objeto console
+            ("log", [DataType.UNKNOWN], DataType.VOID),  # console.log
+            ("error", [DataType.UNKNOWN], DataType.VOID),  # console.error
             ("input", [], DataType.STRING),
             ("parseInt", [DataType.STRING], DataType.NUMBER),
             ("parseFloat", [DataType.STRING], DataType.NUMBER),
         ]
-        
+
         for name, params, return_type in builtins:
             symbol = Symbol(
                 name=name,

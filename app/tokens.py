@@ -13,14 +13,16 @@ KEYWORDS = {
     "if":"IF","else":"ELSE","while":"WHILE","for":"FOR",
     "return":"RETURN","true":"TRUE","false":"FALSE",
     "typeof": "TYPEOF", "class": "CLASS", "throw": "THROW",
-    "new": "NEW"
+    "new": "NEW", "try": "TRY","catch": "CATCH", "finally": "FINALLY",
+    "console": "CONSOLE"
 }
 
 OPERATORS = [
     "===","!==","==","!=","*=","+=","-=",
     "<=", ">=", "||", "&&","{","}","(",
     ")","[","]",";",":","'","`",",",".",
-    "=","<",">","+","-","*","/","%","!","${"
+    "=","<",">","+","-","*","/","%","!","${",
+    "?","??"
 ]
 
 TOKEN_NAME = {
@@ -29,7 +31,8 @@ TOKEN_NAME = {
     "===":"STRICT_EQ","!==":"STRICT_NEQ","=":"ASSIGN","==":"EQEQ","!=":"NEQ","*=":"MUL_ASSIGN",
     "-=":"SUB_ASSIGN","+=":"ADD_ASSIGN","<":"LT","<=":"LE",">":"GT",">=":"GE","||":"OR",
     "&&":"AND","+":"PLUS","-":"MINUS","*":"STAR","/":"SLASH","%":"PERCENT","!":"BANG",
-    "${":"TEMPLATE_START"
+    "${":"TEMPLATE_START","try": "TRY","catch": "CATCH","finally": "FINALLY", "console": "CONSOLE",
+    "?.": "OPTIONAL_CHAINING","??": "NULLISH_COALESCING"
 }
 
 @dataclass(frozen=True)

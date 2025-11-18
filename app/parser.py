@@ -140,8 +140,37 @@ class Parser:
         elif self.check("SEMI"):
             self.advance()  # Statement vacío
             return None
+        elif self.check("TRY"):
+            return self.parse_try_stmt()
         else:
             return self.parse_expr_stmt()
+
+    def parse_try_stmt(self) -> TryStmt:
+        """TryStmt -> try Block CatchClause FinallyClauseOpt"""
+        try_token = self.expect("TRY")
+        try_block = self.parse_block()
+
+        catch_param = None
+        catch_block = None
+        finally_block = None
+
+        if self.match("CATCH"):
+            self.expect("LPAREN")
+            catch_param = self.expect("ID").lexeme
+            self.expect("RPAREN")
+            catch_block = self.parse_block()
+
+        if self.match("FINALLY"):
+            finally_block = self.parse_block()
+
+        return TryStmt(
+            try_block=try_block,
+            catch_param=catch_param,
+            catch_block=catch_block,
+            finally_block=finally_block,
+            line=try_token.line,
+            col=try_token.col
+        )
 
     def parse_var_decl(self) -> VarDecl:
         """VarDecl -> VarKind ID InitOpt ;"""

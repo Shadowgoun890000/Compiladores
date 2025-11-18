@@ -207,6 +207,20 @@ class Literal(ASTNode):
 
 
 # ============================================================================
+# Manejo de Try-Catch
+# ============================================================================
+@dataclass
+class TryStmt(ASTNode):
+    """Sentencia try-catch: try { } catch (error) { }"""
+    try_block: Block
+    catch_param: Optional[str] = None
+    catch_block: Optional[Block] = None
+    finally_block: Optional[Block] = None
+    line: int = 0
+    col: int = 0
+
+
+# ============================================================================
 # Utilidades para imprimir el AST
 # ============================================================================
 def ast_to_string(node: ASTNode, indent: int = 0) -> str:

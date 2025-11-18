@@ -14,6 +14,13 @@ class Lexer:
     def eof(self): return self.i>=self.n
     def peek(self,k=0): 
         j=self.i+k; return self.src[j] if j<self.n else ""
+    def get(self):
+        """Obtiene el carácter actual y avanza (similar a advance(1))"""
+        if self.eof():
+            return ""
+        ch = self.src[self.i]
+        self.advance(1)
+        return ch
     def advance(self,c=1):
         for _ in range(c):
             ch=self.src[self.i]; self.i+=1
@@ -41,10 +48,28 @@ class Lexer:
             L,C=self.line,self.col
 
             if self.peek() == '`':
-                m = self._m(RE_TEMPLATE_STRING)
-                if not m: raise LexError(L, C, self.src[self.i:self.i + 20])
-                toks.append(Token("TEMPLATE_STRING", m, L, C));self.advance(len(m));continue
+                template_content = []
+                self.advance()  # Consumir backtick inicial
+                start_line, start_col = self.line, self.col
 
+                while not self.eof() and self.peek() != '`':
+                    if self.peek() == '$' and self.peek(1) == '{':
+                        # Token de inicio de interpolación
+                        toks.append(Token("TEMPLATE_START", "${", self.line, self.col))
+                        self.advance(2)
+                        # Parsear expresión dentro de ${}
+                        # Esto requiere lógica adicional
+                    else:
+                        # Accumular contenido del template
+                        ch = self.get()
+                        template_content.append(ch)
+
+                if self.peek() == '`':
+                    self.advance()
+                else:
+                    raise LexError(L, C, "Template string no cerrado")
+
+                continue
             if self.peek()=='"':
                 m=self._m(RE_STRING)
                 if not m: raise LexError(L,C,self.src[self.i:self.i+20])
