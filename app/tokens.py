@@ -9,21 +9,25 @@ NON_TERMINALS = [
 ]
 
 KEYWORDS = {
-    "let":"LET","const":"CONST","function":"FUNCTION","if":"IF","else":"ELSE",
-    "while":"WHILE","for":"FOR","return":"RETURN","true":"TRUE","false":"FALSE"
+    "let":"LET","const":"CONST","function":"FUNCTION",
+    "if":"IF","else":"ELSE","while":"WHILE","for":"FOR",
+    "return":"RETURN","true":"TRUE","false":"FALSE",
 }
 
 OPERATORS = [
-    "==","!=", "<=", ">=", "||", "&&",
-    "{","}","(",")","[","]",";",
-    ",",".","=","<",">","+","-","*","/","%","!"
+    "===","!==","==","!=","*=","+=","-=",
+    "<=", ">=", "||", "&&","{","}","(",
+    ")","[","]",";",":","'","`",",",".",
+    "=","<",">","+","-","*","/","%","!","${"
 ]
 
 TOKEN_NAME = {
     "{":"LBRACE","}":"RBRACE","(":"LPAREN",")":"RPAREN","[":"LBRACK","]":"RBRACK",
-    ";":"SEMI",",":"COMMA",".":"DOT","=":"ASSIGN","==":"EQEQ","!=":"NEQ",
-    "<":"LT","<=":"LE",">":"GT",">=":"GE","||":"OR","&&":"AND","+":"PLUS","-":"MINUS",
-    "*":"STAR","/":"SLASH","%":"PERCENT","!":"BANG"
+    ";":"SEMI","'":"APOSTROPHE",",":"COMMA",".":"DOT",":":"COLON","`":"BACKTICK",
+    "===":"STRICT_EQ","!==":"STRICT_NEQ","=":"ASSIGN","==":"EQEQ","!=":"NEQ","*=":"MUL_ASSIGN",
+    "-=":"SUB_ASSIGN","+=":"ADD_ASSIGN","<":"LT","<=":"LE",">":"GT",">=":"GE","||":"OR",
+    "&&":"AND","+":"PLUS","-":"MINUS","*":"STAR","/":"SLASH","%":"PERCENT","!":"BANG",
+    "${":"TEMPLATE_START"
 }
 
 @dataclass(frozen=True)

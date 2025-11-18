@@ -213,8 +213,10 @@ def build_token_nfa()->NFAState:
         "COMMENT": r'//[^\n]*',
     }
     # Operators
-    ops=["==","!=", "<=", ">=", "||", "&&","{","}","(",")","[","]",";",
-         ",",".","=","<",">","+","-","*","/","%","!"]
+    ops=["===","!==","==","!=","*=","+=","-=",
+         "<=", ">=","||", "&&","{","}","(",")",
+         "[","]",";",":","`","'",",",".","${",
+         "=","<",">","+","-","*","/","%","!"]
     super_start=NFAState()
     for name,pat in patterns.items():
         n=RegexBuilder(pat).parse(); n.end.accepts.add(name); super_start.eps.add(n.start)
