@@ -3,12 +3,14 @@ from PyQt6 import QtWidgets, QtGui, QtCore
 from .lexer import Lexer, LexError
 from .parser import Parser, ParseError
 from .semantic_analyzer import SemanticAnalyzer
-from .ast_nodes import ast_to_string
+from .ast_nodes import ast_to_string, ASTNode, FunctionDecl, Block, IfStmt, WhileStmt, ForStmt, Program
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.units import inch
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from .automata_generator import AutomataGenerator, LexerAutomata
+from typing import Optional
 
 
 class TokenTableModel(QtCore.QAbstractTableModel):
@@ -79,32 +81,34 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # --- Botones ---
         buttons = QtWidgets.QHBoxLayout()
-        
+
         # Botones de archivo
         self.btn_open = QtWidgets.QPushButton("📂 Abrir")
         buttons.addWidget(self.btn_open)
-        
+
         # Separador
         buttons.addSpacing(10)
-        
+
         # Botones de análisis
         self.btn_token = QtWidgets.QPushButton("🔍 Tokenizar")
         self.btn_parse = QtWidgets.QPushButton("🌳 Sintaxis")
         self.btn_semantic = QtWidgets.QPushButton("🔬 Semántico")
+        self.btn_automata = QtWidgets.QPushButton("🤖 Autómata")
         buttons.addWidget(self.btn_token)
         buttons.addWidget(self.btn_parse)
         buttons.addWidget(self.btn_semantic)
-        
+        buttons.addWidget(self.btn_automata)
+
         # Separador
         buttons.addSpacing(10)
-        
+
         # ComboBox para tipo de exportación
         export_label = QtWidgets.QLabel("Exportar:")
         export_label.setStyleSheet("color: #e0e0e0; padding: 0 5px;")
         buttons.addWidget(export_label)
-        
+
         self.export_combo = QtWidgets.QComboBox()
-        self.export_combo.addItems(["Tokens a PDF", "AST a PDF", "Semántico a PDF", "Todo a PDF"])
+        self.export_combo.addItems(["Tokens a PDF", "AST a PDF", "Semántico a PDF", "Autómata a PDF", "Todo a PDF"])
         self.export_combo.setStyleSheet("""
             QComboBox {
                 background-color: #2d2d2d;
@@ -132,16 +136,16 @@ class MainWindow(QtWidgets.QMainWindow):
             }
         """)
         buttons.addWidget(self.export_combo)
-        
+
         self.btn_export = QtWidgets.QPushButton("📄 Exportar")
         buttons.addWidget(self.btn_export)
-        
+
         # Espaciador para empujar el botón limpiar a la derecha
         buttons.addStretch()
-        
+
         self.btn_clear = QtWidgets.QPushButton("🧹 Limpiar")
         buttons.addWidget(self.btn_clear)
-        
+
         layout.addLayout(buttons)
 
         # --- Área de salida con tabs ---
@@ -164,11 +168,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 background-color: #3c3c3c;
             }
         """)
-        
+
         # --- Tabla de tokens ---
         self.table = QtWidgets.QTableView()
         self.tabs.addTab(self.table, "Tokens")
-        
+
         # --- Visualización del AST ---
         self.ast_view = QtWidgets.QPlainTextEdit()
         self.ast_view.setReadOnly(True)
@@ -182,7 +186,7 @@ class MainWindow(QtWidgets.QMainWindow):
             }
         """)
         self.tabs.addTab(self.ast_view, "AST")
-        
+
         # --- Visualización del análisis semántico ---
         self.semantic_view = QtWidgets.QPlainTextEdit()
         self.semantic_view.setReadOnly(True)
@@ -196,7 +200,25 @@ class MainWindow(QtWidgets.QMainWindow):
             }
         """)
         self.tabs.addTab(self.semantic_view, "Análisis Semántico")
-        
+
+        # --- Visualización del autómata ---
+        self.automata_scroll = QtWidgets.QScrollArea()
+        self.automata_view = QtWidgets.QLabel()
+        self.automata_view.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.automata_view.setStyleSheet("""
+                  QLabel {
+                      background-color: white;
+                      border: 2px solid #3c3c3c;
+                      border-radius: 6px;
+                  }
+              """)
+        self.automata_view.setMinimumSize(400, 300)  # Tamaño mínimo
+        self.automata_scroll.setWidget(self.automata_view)
+        self.automata_scroll.setWidgetResizable(True)  # Permitir redimensionar el contenido
+        self.automata_scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.automata_scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.tabs.addTab(self.automata_scroll, "Autómata")
+
         layout.addWidget(self.tabs, 3)
 
         # --- Barra de estado ---
@@ -208,12 +230,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_token.clicked.connect(self.on_tokenize)
         self.btn_parse.clicked.connect(self.on_parse)
         self.btn_semantic.clicked.connect(self.on_semantic)
+        self.btn_automata.clicked.connect(self.on_generate_automata)
         self.btn_export.clicked.connect(self.export_to_pdf)
         self.btn_clear.clicked.connect(self.clear_all)
-        
+
         # Variables para almacenar resultados
         self.current_tokens = None
         self.current_ast = None
+        self.automata_generator = AutomataGenerator()
 
     # ------------------------------------------------------------------
     # Abrir archivo fuente
@@ -265,17 +289,17 @@ class MainWindow(QtWidgets.QMainWindow):
             self.on_tokenize()
             if not self.current_tokens:
                 return
-        
+
         try:
             parser = Parser(self.current_tokens)
             ast = parser.parse()
             self.current_ast = ast  # Guardar para el análisis semántico
-            
+
             # Convertir AST a string para visualización
             ast_str = ast_to_string(ast)
             self.ast_view.setPlainText(ast_str)
             self.tabs.setCurrentIndex(1)  # Mostrar tab de AST
-            
+
             self.status.showMessage("Análisis sintáctico completado exitosamente", 4000)
             QtWidgets.QMessageBox.information(
                 self,
@@ -283,7 +307,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 "El código fuente es sintácticamente correcto.\n"
                 "El árbol de sintaxis abstracta (AST) se muestra en la pestaña AST."
             )
-            
+
         except ParseError as e:
             self.current_ast = None
             self.ast_view.setPlainText(f"ERROR DE SINTAXIS:\n\n{str(e)}")
@@ -297,7 +321,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ast_view.setPlainText(f"ERROR INESPERADO:\n\n{str(e)}")
             self.tabs.setCurrentIndex(1)
             QtWidgets.QMessageBox.critical(self, "Error inesperado", str(e))
-    
+
     # ------------------------------------------------------------------
     # Análisis semántico
     # ------------------------------------------------------------------
@@ -307,16 +331,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self.on_parse()
             if not self.current_ast:
                 return
-        
+
         try:
             analyzer = SemanticAnalyzer()
             success = analyzer.analyze(self.current_ast)
-            
+
             # Mostrar reporte
             report = analyzer.get_report()
             self.semantic_view.setPlainText(report)
             self.tabs.setCurrentIndex(2)  # Mostrar tab de análisis semántico
-            
+
             if success and not analyzer.warnings:
                 self.status.showMessage("Análisis semántico completado sin errores ni warnings", 4000)
                 QtWidgets.QMessageBox.information(
@@ -326,7 +350,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     "No se encontraron errores ni advertencias."
                 )
             elif success:
-                self.status.showMessage(f"Análisis semántico completado con {len(analyzer.warnings)} advertencias", 4000)
+                self.status.showMessage(f"Análisis semántico completado con {len(analyzer.warnings)} advertencias",
+                                        4000)
                 QtWidgets.QMessageBox.warning(
                     self,
                     "Análisis Semántico",
@@ -341,13 +366,155 @@ class MainWindow(QtWidgets.QMainWindow):
                     f"❌ Se encontraron {len(analyzer.errors)} errores semánticos.\n"
                     "Revisa la pestaña 'Análisis Semántico' para más detalles."
                 )
-            
+
         except Exception as e:
             error_msg = f"ERROR EN ANÁLISIS SEMÁNTICO:\n\n{str(e)}"
             self.semantic_view.setPlainText(error_msg)
             self.tabs.setCurrentIndex(2)
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
-    
+
+    # ------------------------------------------------------------------
+    # Generar autómata (modificado)
+    # ------------------------------------------------------------------
+    def on_generate_automata(self):
+        """Genera y muestra el diagrama del autómata"""
+        try:
+            # Verificar si hay AST disponible
+            if not self.current_ast:
+                QtWidgets.QMessageBox.warning(
+                    self, "Advertencia",
+                    "No hay AST disponible. Primero analiza la sintaxis del código."
+                )
+                return
+
+            # Opciones de autómata
+            items = [
+                "Autómata del Lexer",
+                "Autómata del Programa Completo",
+                "Autómata de Flujo de Control",
+                "Autómata de Funciones"
+            ]
+
+            item, ok = QtWidgets.QInputDialog.getItem(
+                self, "Seleccionar Autómata",
+                "Elige el tipo de autómata a generar:",
+                items, 0, False
+            )
+
+            if ok and item:
+                image_path = ""
+                self.current_automata_type = item  # Guardar el tipo de autómata
+
+                if item == "Autómata del Lexer":
+                    image_path = LexerAutomata.generate_lexer_automata()
+                elif item == "Autómata del Programa Completo":
+                    image_path = self.automata_generator.generate_control_flow_automata(
+                        self.current_ast, "Autómata del Programa Completo"
+                    )
+                elif item == "Autómata de Flujo de Control":
+                    # Buscar una estructura de control en el AST
+                    control_node = self._find_control_structure(self.current_ast)
+                    if control_node:
+                        image_path = self.automata_generator.generate_control_flow_automata(
+                            control_node, "Autómata de Flujo de Control"
+                        )
+                    else:
+                        QtWidgets.QMessageBox.information(
+                            self, "Información",
+                            "No se encontraron estructuras de control (if, while, for) en el código."
+                        )
+                        return
+                elif item == "Autómata de Funciones":
+                    # Buscar una función en el AST
+                    func_node = self._find_function(self.current_ast)
+                    if func_node:
+                        image_path = self.automata_generator.generate_control_flow_automata(
+                            func_node, f"Autómata de Función: {func_node.name}"
+                        )
+                    else:
+                        QtWidgets.QMessageBox.information(
+                            self, "Información",
+                            "No se encontraron funciones en el código."
+                        )
+                        return
+
+                # Guardar la ruta del autómata para exportación
+                self.current_automata_path = image_path
+
+                # Mostrar la imagen generada
+                if image_path and not image_path.startswith("Error"):
+                    pixmap = QtGui.QPixmap(image_path)
+                    if not pixmap.isNull():
+                        # Redimensionar la imagen para que se ajuste al área disponible
+                        scaled_pixmap = pixmap.scaled(
+                            self.automata_view.size(),
+                            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                            QtCore.Qt.TransformationMode.SmoothTransformation
+                        )
+                        self.automata_view.setPixmap(scaled_pixmap)
+                        self.automata_view.setScaledContents(False)  # Importante: desactivar scaledContents
+                        self.tabs.setCurrentIndex(3)  # Mostrar pestaña de autómata
+                        self.status.showMessage(f"Autómata generado: {item}", 4000)
+                    else:
+                        QtWidgets.QMessageBox.critical(
+                            self, "Error",
+                            "No se pudo cargar la imagen del autómata."
+                        )
+                else:
+                    QtWidgets.QMessageBox.critical(
+                        self, "Error",
+                        f"Error generando autómata: {image_path}"
+                    )
+
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(
+                self, "Error",
+                f"Error al generar autómata: {str(e)}"
+            )
+
+    def _find_control_structure(self, node: ASTNode) -> Optional[ASTNode]:
+        """Busca la primera estructura de control en el AST"""
+        if isinstance(node, (IfStmt, WhileStmt, ForStmt)):
+            return node
+
+        if isinstance(node, Program):
+            for stmt in node.statements:
+                result = self._find_control_structure(stmt)
+                if result:
+                    return result
+        elif isinstance(node, Block):
+            for stmt in node.statements:
+                result = self._find_control_structure(stmt)
+                if result:
+                    return result
+        elif isinstance(node, FunctionDecl):
+            for stmt in node.body:
+                result = self._find_control_structure(stmt)
+                if result:
+                    return result
+
+        return None
+
+    def _find_function(self, node: ASTNode) -> Optional[FunctionDecl]:
+        """Busca la primera función en el AST"""
+        if isinstance(node, FunctionDecl):
+            return node
+
+        if isinstance(node, Program):
+            for stmt in node.statements:
+                if isinstance(stmt, FunctionDecl):
+                    return stmt
+                result = self._find_function(stmt)
+                if result:
+                    return result
+        elif isinstance(node, Block):
+            for stmt in node.statements:
+                result = self._find_function(stmt)
+                if result:
+                    return result
+
+        return None
+
     # ------------------------------------------------------------------
     # Limpiar todo
     # ------------------------------------------------------------------
@@ -355,8 +522,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editor.clear()
         self.ast_view.clear()
         self.semantic_view.clear()
+        self.automata_view.clear()
         self.current_tokens = None
         self.current_ast = None
+        # Limpiar variables del autómata
+        if hasattr(self, 'current_automata_path'):
+            self.current_automata_path = None
+        if hasattr(self, 'current_automata_type'):
+            self.current_automata_type = None
         if self.table.model():
             self.table.setModel(None)
         self.status.showMessage("Todo limpiado", 2000)
@@ -366,7 +539,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # ------------------------------------------------------------------
     def export_to_pdf(self):
         export_type = self.export_combo.currentText()
-        
+
         # Verificar qué datos están disponibles
         if "Tokens" in export_type and not self.current_tokens:
             QtWidgets.QMessageBox.warning(
@@ -374,29 +547,37 @@ class MainWindow(QtWidgets.QMainWindow):
                 "No hay tokens para exportar. Primero tokeniza el código."
             )
             return
-        
+
         if "AST" in export_type and not self.current_ast:
             QtWidgets.QMessageBox.warning(
                 self, "Advertencia",
                 "No hay AST para exportar. Primero analiza la sintaxis."
             )
             return
-        
+
         if "Semántico" in export_type and self.semantic_view.toPlainText().strip() == "":
             QtWidgets.QMessageBox.warning(
                 self, "Advertencia",
                 "No hay análisis semántico para exportar. Primero ejecuta el análisis semántico."
             )
             return
-        
+
+        if "Autómata" in export_type and (not hasattr(self, 'current_automata_path') or not self.current_automata_path):
+            QtWidgets.QMessageBox.warning(
+                self, "Advertencia",
+                "No hay autómata para exportar. Primero genera un autómata."
+            )
+            return
+
         # Determinar nombre de archivo por defecto
         default_names = {
             "Tokens a PDF": "tokens.pdf",
             "AST a PDF": "ast.pdf",
             "Semántico a PDF": "analisis_semantico.pdf",
+            "Autómata a PDF": "automata.pdf",
             "Todo a PDF": "analisis_completo.pdf"
         }
-        
+
         try:
             file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
                 self,
@@ -404,13 +585,13 @@ class MainWindow(QtWidgets.QMainWindow):
                 os.path.join(os.getcwd(), "exports", default_names.get(export_type, "export.pdf")),
                 "Archivos PDF (*.pdf)"
             )
-            
+
             if not file_path:
                 return
 
             if not file_path.lower().endswith('.pdf'):
                 file_path += '.pdf'
-            
+
             # Asegurar que existe el directorio
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
@@ -418,15 +599,15 @@ class MainWindow(QtWidgets.QMainWindow):
             doc = SimpleDocTemplate(
                 file_path,
                 pagesize=letter,
-                rightMargin=inch/2,
-                leftMargin=inch/2,
+                rightMargin=inch / 2,
+                leftMargin=inch / 2,
                 topMargin=inch,
-                bottomMargin=inch/2
+                bottomMargin=inch / 2
             )
 
             elements = []
             styles = getSampleStyleSheet()
-            
+
             # Estilo para títulos
             title_style = ParagraphStyle(
                 'CustomTitle',
@@ -436,7 +617,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 spaceAfter=30,
                 alignment=1
             )
-            
+
             subtitle_style = ParagraphStyle(
                 'CustomSubtitle',
                 parent=styles['Heading2'],
@@ -453,12 +634,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 elements.extend(self._export_ast(title_style, subtitle_style))
             elif export_type == "Semántico a PDF":
                 elements.extend(self._export_semantic(title_style, subtitle_style))
+            elif export_type == "Autómata a PDF":
+                elements.extend(self._export_automata(title_style, subtitle_style))
             elif export_type == "Todo a PDF":
                 elements.extend(self._export_all(title_style, subtitle_style))
 
             # Construir el PDF
             doc.build(elements)
-            
+
             self.status.showMessage(f"PDF exportado: {os.path.basename(file_path)}", 4000)
             QtWidgets.QMessageBox.information(
                 self, "Éxito",
@@ -470,7 +653,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self, "Error",
                 f"No se pudo exportar el PDF:\n{str(e)}"
             )
-    
+
     # ------------------------------------------------------------------
     # Funciones auxiliares para exportación
     # ------------------------------------------------------------------
@@ -479,7 +662,7 @@ class MainWindow(QtWidgets.QMainWindow):
         elements = []
         elements.append(Paragraph("Análisis Léxico - Tokens", title_style))
         elements.append(Spacer(1, 20))
-        
+
         # Preparar datos de la tabla
         data = [TokenTableModel.HEADERS]
         model = self.table.model()
@@ -490,7 +673,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 row_data.append(str(value))
             data.append(row_data)
 
-        col_widths = [0.7*inch, 0.7*inch, 1.5*inch, 3*inch]
+        col_widths = [0.7 * inch, 0.7 * inch, 1.5 * inch, 3 * inch]
         table = Table(data, colWidths=col_widths, repeatRows=1)
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#007acc')),
@@ -509,24 +692,24 @@ class MainWindow(QtWidgets.QMainWindow):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('TOPPADDING', (0, 0), (-1, -1), 8),
         ]))
-        
+
         elements.append(table)
-        
+
         # Agregar resumen
         elements.append(Spacer(1, 20))
         summary_style = ParagraphStyle('Summary', parent=getSampleStyleSheet()['Normal'], fontSize=10)
         elements.append(Paragraph(f"Total de tokens: {model.rowCount()}", summary_style))
-        
+
         return elements
-    
+
     def _export_ast(self, title_style, subtitle_style):
         """Exporta el AST"""
         elements = []
         elements.append(Paragraph("Análisis Sintáctico - AST", title_style))
         elements.append(Spacer(1, 20))
-        
+
         ast_text = self.ast_view.toPlainText()
-        
+
         # Dividir en líneas y crear párrafos
         code_style = ParagraphStyle(
             'Code',
@@ -537,20 +720,20 @@ class MainWindow(QtWidgets.QMainWindow):
             spaceBefore=0,
             spaceAfter=0
         )
-        
+
         for line in ast_text.split('\n'):
             elements.append(Paragraph(line.replace('<', '&lt;').replace('>', '&gt;'), code_style))
-        
+
         return elements
-    
+
     def _export_semantic(self, title_style, subtitle_style):
         """Exporta el análisis semántico"""
         elements = []
         elements.append(Paragraph("Análisis Semántico", title_style))
         elements.append(Spacer(1, 20))
-        
+
         semantic_text = self.semantic_view.toPlainText()
-        
+
         code_style = ParagraphStyle(
             'Code',
             parent=getSampleStyleSheet()['Code'],
@@ -560,33 +743,92 @@ class MainWindow(QtWidgets.QMainWindow):
             spaceBefore=0,
             spaceAfter=0
         )
-        
+
         for line in semantic_text.split('\n'):
             elements.append(Paragraph(line.replace('<', '&lt;').replace('>', '&gt;'), code_style))
-        
+
         return elements
-    
+
+    def _export_automata(self, title_style, subtitle_style):
+        """Exporta el autómata generado"""
+        elements = []
+        elements.append(Paragraph("Autómata Generado", title_style))
+        elements.append(Spacer(1, 20))
+
+        if not hasattr(self, 'current_automata_path') or not self.current_automata_path:
+            elements.append(Paragraph("No hay autómata disponible para exportar.", subtitle_style))
+            return elements
+
+        try:
+            # Agregar información sobre el autómata
+            elements.append(
+                Paragraph(f"Tipo de autómata: {getattr(self, 'current_automata_type', 'Desconocido')}", subtitle_style))
+            elements.append(Spacer(1, 10))
+
+            # Agregar la imagen del autómata al PDF
+            from reportlab.platypus import Image
+            from reportlab.lib.units import inch
+
+            # Verificar que el archivo de imagen existe
+            if os.path.exists(self.current_automata_path):
+                # Calcular el tamaño máximo para que se ajuste a la página
+                max_width = letter[0] - inch  # Ancho máximo (página - márgenes)
+                max_height = letter[1] - 2 * inch  # Alto máximo (página - márgenes)
+
+                # Crear la imagen con tamaño controlado
+                img = Image(self.current_automata_path)
+
+                # Redimensionar manteniendo la relación de aspecto
+                width_ratio = max_width / img.drawWidth
+                height_ratio = max_height / img.drawHeight
+                scale_factor = min(width_ratio, height_ratio, 1.0)  # No escalar más allá del 100%
+
+                img.drawWidth *= scale_factor
+                img.drawHeight *= scale_factor
+
+                # Centrar la imagen
+                img.hAlign = 'CENTER'
+
+                elements.append(img)
+                elements.append(Spacer(1, 10))
+                elements.append(Paragraph(f"Tamaño: {img.drawWidth:.1f} x {img.drawHeight:.1f} puntos",
+                                          ParagraphStyle('Small', parent=getSampleStyleSheet()['Normal'], fontSize=8)))
+            else:
+                elements.append(Paragraph("Error: No se encontró la imagen del autómata.", subtitle_style))
+
+        except Exception as e:
+            elements.append(Paragraph(f"Error al exportar el autómata: {str(e)}", subtitle_style))
+
+        return elements
+
     def _export_all(self, title_style, subtitle_style):
         """Exporta todo el análisis completo"""
         elements = []
         elements.append(Paragraph("Análisis Completo del Compilador", title_style))
         elements.append(Spacer(1, 30))
-        
+
         # Tokens
         if self.current_tokens:
             elements.append(Paragraph("1. Análisis Léxico", subtitle_style))
             elements.extend(self._export_tokens(None, None)[2:])  # Omitir título duplicado
             elements.append(Spacer(1, 30))
-        
+
         # AST
         if self.current_ast:
             elements.append(Paragraph("2. Análisis Sintáctico", subtitle_style))
             elements.extend(self._export_ast(None, None)[2:])  # Omitir título duplicado
             elements.append(Spacer(1, 30))
-        
+
         # Semántico
         if self.semantic_view.toPlainText().strip():
             elements.append(Paragraph("3. Análisis Semántico", subtitle_style))
             elements.extend(self._export_semantic(None, None)[2:])  # Omitir título duplicado
-        
+            elements.append(Spacer(1, 30))
+
+        # Autómata
+        if hasattr(self, 'current_automata_path') and self.current_automata_path and os.path.exists(
+                self.current_automata_path):
+            elements.append(Paragraph("4. Autómata", subtitle_style))
+            elements.extend(self._export_automata(None, None)[2:])  # Omitir título duplicado
+
         return elements
